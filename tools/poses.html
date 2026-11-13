@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollowhold pose bench</title>
+<link rel="stylesheet" href="../css/tokens.css">
+<style>
+  html, body { margin: 0; height: 100%; background: var(--paper); }
+  canvas { display: block; width: 100%; height: 100%; }
+  #info { position: fixed; left: 8px; top: 8px; font: 12px monospace; color: var(--ink); }
+</style>
+<script type="importmap">
+{ "imports": { "three": "../vendor/three/build/three.module.js", "three/addons/": "../vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info"></div>
+<script type="module">
+// Dev bench: ?ex=squat&t=0.5&view=side&az=90&el=5 freezes one pose.
+// window.__pose(id, t, view, az, el) does the same from a script.
+import { createStage, VIEWS } from '../src/stage.js';
+import { byId, IDLE } from '../src/exercises.js';
+import { sample, applyPose } from '../src/pose.js';
+
+const stage = createStage(document.getElementById('c'));
+const q = new URLSearchParams(location.search);
+let cur = { id: q.get('ex') || 'squat', t: parseFloat(q.get('t') || '0') };
+function pose(id, t, view, az, el, dist) {
+  const ex = byId[id] || IDLE;
+  cur = { id, t };
+  const f = sample(ex, t);
+  applyPose(stage.body, f, ex, t);
+  stage.body.showProps(!!ex.props);
+  const tg = {};
+  for (const g of ex.primary) tg[g] = { p: 1 };
+  for (const g of ex.secondary) tg[g] = { s: 1 };
+  stage.setTargets(tg);
+  stage.effort = f.e;
+  if (az !== undefined) { VIEWS.bench = { ...(VIEWS[view || ex.view] || VIEWS.stand), az, el: el ?? 8, ...(dist ? { dist } : {}) }; stage.setView('bench', true); }
+  else stage.setView(view || ex.view, true);
+  document.getElementById('info').textContent = `${id} t=${t}`;
+}
+window.__pose = pose;
+window.__stage = stage;
+window.__thumb = (id) => { pose(id, (byId[id] || IDLE).peak ?? 0.5); return stage.snapshot(256, byId[id]?.view); };
+const az = q.get('az'), el = q.get('el');
+pose(cur.id, cur.t, q.get('view') || undefined, az !== null ? parseFloat(az) : undefined, el !== null ? parseFloat(el) : undefined);
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (q.has('play')) { cur.t = (cur.t + dt / (byId[cur.id]?.tempo || 3)) % 1; const ex = byId[cur.id]; const f = sample(ex, cur.t); applyPose(stage.body, f, ex, cur.t); stage.effort = f.e; }
+  stage.render(dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+addEventListener('resize', () => stage.resize());
+</script>
+</body>
+</html>

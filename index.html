@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hollowhold</title>
+<meta name="description" content="Exercise anatomy in motion: a 3D body performs each exercise and shows the muscles it trains.">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/app.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<div class="bigword" id="bigword" aria-hidden="true"><span id="bigword-text">Squat</span></div>
+<canvas id="stage" aria-label="3D figure performing the selected exercise. Drag to turn it."></canvas>
+
+<div class="legend mono" id="legend">
+  <span><i class="sw sw-p"></i>Primary</span>
+  <span><i class="sw sw-s"></i>Secondary</span>
+  <span class="hint">Drag to turn · tap a muscle</span>
+</div>
+
+<div class="toolbar" role="toolbar" aria-label="View settings">
+  <button type="button" class="tool" id="t-muscles" aria-pressed="true" title="Show muscles">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="5" ry="9"/><path d="M12 3v18M8 7c2 2 6 2 8 0M7.5 12h9M8 17c2-2 6-2 8 0"/></svg>
+    <span class="sr">Muscles</span>
+  </button>
+  <button type="button" class="tool" id="t-sound" aria-pressed="true" title="Sound cues">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="on" d="M16 9c1.5 1.5 1.5 4.5 0 6M18.5 6.5c3 3 3 8 0 11"/><path class="off" d="M16 9l5 6M21 9l-5 6"/></svg>
+    <span class="sr">Sound</span>
+  </button>
+  <button type="button" class="tool tool-text mono" id="t-speed" title="Playback speed">1.0×</button>
+  <button type="button" class="tool" id="t-theme" title="Light or dark">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" class="fill"/></svg>
+    <span class="sr">Theme</span>
+  </button>
+  <button type="button" class="tool" id="t-view" title="Reset the view">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="4"/></svg>
+    <span class="sr">Reset view</span>
+  </button>
+</div>
+
+<aside class="panel" id="panel">
+  <header class="brand">
+    <h1 class="wordmark">Hollowhold</h1>
+    <p class="mono strap">Exercise anatomy, in motion</p>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" id="tab-exercises" data-tab="exercises" aria-selected="true">Exercises</button>
+    <button type="button" role="tab" id="tab-workouts" data-tab="workouts" aria-selected="false">Workouts</button>
+    <button type="button" role="tab" id="tab-log" data-tab="log" aria-selected="false">Log</button>
+  </nav>
+  <div class="panel-body" id="panel-body">
+    <section class="view" id="v-exercises" data-view="exercises">
+      <div class="filters" id="filters" role="group" aria-label="Filter by area"></div>
+      <div class="tiles" id="tiles"></div>
+    </section>
+    <section class="view" id="v-detail" data-view="detail" hidden></section>
+    <section class="view" id="v-workouts" data-view="workouts" hidden></section>
+    <section class="view" id="v-workout" data-view="workout" hidden></section>
+    <section class="view" id="v-log" data-view="log" hidden></section>
+    <section class="view" id="v-muscle" data-view="muscle" hidden></section>
+    <section class="view" id="v-session" data-view="session" hidden></section>
+  </div>
+</aside>
+
+<div class="readout mono" id="readout" aria-hidden="true">
+  <div class="r-head"><span>Joint readout</span><span>Left</span></div>
+  <div class="r-row"><span>Hip</span><b id="r-hip">0°</b><i class="r-bar"><u id="rb-hip"></u></i></div>
+  <div class="r-row"><span>Knee</span><b id="r-knee">0°</b><i class="r-bar"><u id="rb-knee"></u></i></div>
+  <div class="r-row"><span>Elbow</span><b id="r-elbow">0°</b><i class="r-bar"><u id="rb-elbow"></u></i></div>
+  <div class="r-row"><span>Trunk</span><b id="r-trunk">0°</b><i class="r-bar"><u id="rb-trunk"></u></i></div>
+  <div class="r-row r-load"><span>Load</span><span class="cells" id="r-load"></span></div>
+</div>
+
+<div class="hud" id="hud" hidden>
+  <div class="hud-head mono"><span id="h-label">Get ready</span><span id="h-clock">00:00</span></div>
+  <div class="hud-name" id="h-name">Squat</div>
+  <div class="hud-count" aria-live="polite"><b id="h-big">5</b><span id="h-of"></span><span class="mono" id="h-unit">s</span></div>
+  <div class="cells hud-gauge" id="h-gauge"></div>
+  <div class="hud-next mono" id="h-next"></div>
+  <div class="hud-ctrl">
+    <button type="button" class="btn btn-lime" id="h-pause">Pause</button>
+    <button type="button" class="btn" id="h-skip">Skip</button>
+    <button type="button" class="btn" id="h-end">End</button>
+  </div>
+</div>
+
+<div class="tip mono" id="tip" hidden></div>
+
+<div class="sheet-wrap" id="summary" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sum-title">
+    <p class="mono label" id="sum-kicker">Session complete</p>
+    <h2 class="title" id="sum-title">Full body starter</h2>
+    <div class="stats" id="sum-stats"></div>
+    <p class="mono label">Muscles worked</p>
+    <div class="chips" id="sum-muscles"></div>
+    <button type="button" class="btn btn-ink cta" id="sum-done">Done</button>
+  </div>
+</div>
+
+<noscript><p class="noscript">Hollowhold needs JavaScript and WebGL to show the 3D figure.</p></noscript>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
